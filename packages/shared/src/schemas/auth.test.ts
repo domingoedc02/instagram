@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isReservedUsername } from "../reserved-usernames";
-import { ageOn, maskEmail, signUpSchema, usernameSchema } from "./auth";
+import { ageOn, maskEmail, signUpSchema, usernameSchema, safeNextPath, signInSchema } from "./auth";
 
 const valid = {
   email: "  Maya@Example.com ",
@@ -60,5 +60,41 @@ describe("maskEmail", () => {
   it("keeps the first letter and the domain", () => {
     expect(maskEmail("maya@example.com")).toBe("m***@example.com");
     expect(maskEmail("bad")).toBe("***");
+  });
+});
+
+describe("signInSchema", () => {
+  it("trims and lowercases the identifier", () => {
+    expect(signInSchema.parse({ identifier: "  MaYa ", password: "x" })).toEqual({
+      identifier: "maya",
+      password: "x",
+    });
+  });
+
+  it("does not apply the sign-up password rules", () => {
+    expect(signInSchema.safeParse({ identifier: "maya", password: "short" }).success).toBe(true);
+    expect(signInSchema.safeParse({ identifier: "maya", password: "" }).success).toBe(false);
+    expect(signInSchema.safeParse({ identifier: " ", password: "x" }).success).toBe(false);
+  });
+});
+
+describe("safeNextPath", () => {
+  it.each(["/", "/explore", "/p/abc?x=1#y", "/settings/security"])("keeps %s", (next) => {
+    expect(safeNextPath(next)).toBe(next);
+  });
+
+  it.each([
+    "https://evil.test",
+    "//evil.test",
+    "/\\evil.test",
+    "/\t/evil.test",
+    "/\n/evil.test",
+    "evil",
+    "",
+    undefined,
+    ["/a"],
+    `/${"a".repeat(2048)}`,
+  ])("rejects %j", (next) => {
+    expect(safeNextPath(next)).toBe("/");
   });
 });

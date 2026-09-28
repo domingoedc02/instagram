@@ -45,6 +45,36 @@ export type SignUpInput = z.output<typeof signUpSchema>;
 
 export const resendVerificationSchema = z.object({ email: emailSchema });
 
+/**
+ * `POST /auth/sign-in` (INS-23). The identifier is an email when it contains `@`, otherwise a
+ * username; both are normalized (trim, lowercase). The password is not held to the sign-up
+ * rules — a wrong one must get the generic 401, not a validation error.
+ */
+export const signInSchema = z.object({
+  identifier: z
+    .string()
+    .trim()
+    .min(1, "Enter your email or username.")
+    .max(254)
+    .transform((i) => i.toLowerCase()),
+  password: z.string().min(1, "Enter your password.").max(128),
+});
+export type SignInInput = z.output<typeof signInSchema>;
+
+/**
+ * The post-login destination: only a same-origin relative path (`/…`, not `//…` or `/\…`,
+ * which browsers treat as another host) — anything else is `/` (open-redirect guard, AC-11).
+ */
+export function safeNextPath(next: unknown): string {
+  if (typeof next !== "string" || !next.startsWith("/")) return "/";
+  if (next.startsWith("//") || next.startsWith("/\\")) return "/";
+  // Control characters (tab, newline) are stripped by URL parsers and can smuggle a `//`.
+  if ([...next].some((c) => c.charCodeAt(0) < 0x20 || c === "\u007f") || next.length > 2048) {
+    return "/";
+  }
+  return next;
+}
+
 export const usernameAvailableQuery = z.object({ u: z.string().max(64) });
 
 /** Whole years between `birthdate` (YYYY-MM-DD) and `today`, in UTC. */

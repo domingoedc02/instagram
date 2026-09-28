@@ -25,7 +25,7 @@ describe("rateLimit when Redis is unavailable", () => {
 describe("policies", () => {
   it("match spec/api", () => {
     expect(POLICIES.search).toEqual([{ limit: 60, windowMs: 60_000 }]);
-    expect(POLICIES["auth-sign-in"]).toEqual([{ limit: 10, windowMs: 900_000 }]);
+    expect(POLICIES["auth-sign-in"]).toEqual([{ limit: 20, windowMs: 900_000 }]);
     expect(POLICIES.follows.map((w) => w.limit)).toEqual([100, 500]);
   });
 });

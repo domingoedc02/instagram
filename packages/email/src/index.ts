@@ -1,5 +1,6 @@
 import { render } from "@react-email/components";
 import { createElement, type ReactElement } from "react";
+import { LoginAlert, type LoginAlertProps } from "./templates/login-alert";
 import { SignUpAttempt, type SignUpAttemptProps } from "./templates/sign-up-attempt";
 import { VerifyEmail, type VerifyEmailProps } from "./templates/verify-email";
 
@@ -15,7 +16,7 @@ export interface EmailMessage {
 }
 
 export type EmailTemplate =
-  "verify-email" | "sign-up-attempt" | "reset-password" | "password-changed";
+  "verify-email" | "sign-up-attempt" | "login-alert" | "reset-password" | "password-changed";
 
 async function build(to: string, subject: string, element: ReactElement): Promise<EmailMessage> {
   const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
@@ -28,6 +29,10 @@ export function verifyEmailMessage(to: string, props: VerifyEmailProps): Promise
 
 export function signUpAttemptMessage(to: string, props: SignUpAttemptProps): Promise<EmailMessage> {
   return build(to, "Someone tried to sign up with your email", createElement(SignUpAttempt, props));
+}
+
+export function loginAlertMessage(to: string, props: LoginAlertProps): Promise<EmailMessage> {
+  return build(to, "Unusual login attempts on your INS account", createElement(LoginAlert, props));
 }
 
 export { Layout } from "./components/layout";

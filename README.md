@@ -59,7 +59,10 @@ declare every other index in `schema.prisma`, or `migrate dev` will generate a D
 ### Auth in development
 
 Sign up at `/signup`; the confirmation email lands in Mailpit (http://localhost:8025) and its
-link signs you in. `HIBP_ENABLED=false` skips the breached-password check offline (the seed
+link signs you in. Log in at `/login` with an email or username (the seed users work), and
+manage sessions at `/settings/security`. Five wrong passwords lock an identifier for 15 minutes
+(the lock lives in Redis: `redis-cli --scan --pattern 'lock:login:*' | xargs redis-cli del`
+clears it locally). `HIBP_ENABLED=false` skips the breached-password check offline (the seed
 password `password1234` is breached, so leave it off to sign up with it). If port 3000 is
 taken, set `APP_URL`, `BETTER_AUTH_URL` and `ALLOWED_ORIGINS` to the port you use: mutating
 requests from any other origin get 403. Design: [ADR-0002](docs/adr/0002-auth-implementation.md).
@@ -80,7 +83,7 @@ zod) → authorize → idempotency → handler → error envelope.
 export const POST = withApi(
   { rateLimit: "posts", body: createPostSchema, idempotent: true },
   async (ctx, { body }) =>
-    Response.json(await createPost(ctx.session!.user.id, body), { status: 201 }),
+    Response.json(await createPost(sessionOf(ctx).user.id, body), { status: 201 }),
 );
 ```
 

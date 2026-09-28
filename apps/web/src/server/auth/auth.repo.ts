@@ -181,7 +181,14 @@ export async function consumeVerificationToken(
 export interface SessionRow {
   id: string;
   expiresAt: Date;
-  user: { id: string; role: Role; status: UserStatus; emailVerified: boolean };
+  updatedAt: Date;
+  user: {
+    id: string;
+    role: Role;
+    status: UserStatus;
+    suspendedUntil: Date | null;
+    emailVerified: boolean;
+  };
 }
 
 export function findSessionByTokenHash(tokenHash: string): Promise<SessionRow | null> {
@@ -190,7 +197,131 @@ export function findSessionByTokenHash(tokenHash: string): Promise<SessionRow | 
     select: {
       id: true,
       expiresAt: true,
-      user: { select: { id: true, role: true, status: true, emailVerified: true } },
+      updatedAt: true,
+      user: {
+        select: { id: true, role: true, status: true, suspendedUntil: true, emailVerified: true },
+      },
     },
+  });
+}
+
+/**
+ * Marks a session active now (`updated_at` is lastActiveAt) and, when given, slides its expiry.
+ * `updateMany` so a session revoked in the meantime is simply not found.
+ */
+export async function touchSession(sessionId: string, expiresAt?: Date): Promise<void> {
+  await prisma.session.updateMany({
+    where: { id: sessionId },
+    data: { updatedAt: new Date(), ...(expiresAt ? { expiresAt } : {}) },
+  });
+}
+
+export interface SignInCandidate {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  status: UserStatus;
+  suspendedUntil: Date | null;
+  emailVerified: boolean;
+  passwordHash: string | null;
+}
+
+/** The user an identifier names (email or username, both citext) with its credential hash. */
+export async function findSignInCandidate(
+  by: { email: string } | { username: string },
+): Promise<SignInCandidate | null> {
+  const user = await prisma.user.findUnique({
+    where: by,
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      email: true,
+      status: true,
+      suspendedUntil: true,
+      emailVerified: true,
+      accounts: { where: { providerId: "credential" }, select: { password: true }, take: 1 },
+    },
+  });
+  if (!user) return null;
+  const { accounts, ...rest } = user;
+  return { ...rest, passwordHash: accounts[0]?.password ?? null };
+}
+
+/** Session row + `auth.sign_in`, atomically. */
+export async function createSession(
+  userId: string,
+  session: NewSession,
+  meta: AuditMeta,
+): Promise<void> {
+  await prisma.$transaction([
+    prisma.session.create({
+      data: {
+        userId,
+        token: session.tokenHash,
+        expiresAt: session.expiresAt,
+        ipAddress: meta.ip,
+        userAgent: meta.userAgent,
+      },
+    }),
+    prisma.auditLog.create({
+      data: auditRow("auth.sign_in", userId, meta, { method: "password" }),
+    }),
+  ]);
+}
+
+/** An audit row outside any other write (failed sign-in, lockout). */
+export async function writeAudit(
+  action: string,
+  actorId: string | null,
+  meta: AuditMeta,
+  extra: object = {},
+): Promise<void> {
+  await prisma.auditLog.create({ data: auditRow(action, actorId, meta, extra) });
+}
+
+export interface SessionListRow {
+  id: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** The user's live sessions, most recently active first. */
+export function listSessions(userId: string, now: Date): Promise<SessionListRow[]> {
+  return prisma.session.findMany({
+    where: { userId, expiresAt: { gt: now } },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, ipAddress: true, userAgent: true, createdAt: true, updatedAt: true },
+  });
+}
+
+/**
+ * Deletes sessions of `userId` and audits it in the same transaction. `only` deletes one session
+ * (null when it is not the user's); `except` deletes all others. Returns the deleted token
+ * hashes, so the caller can evict them from the session cache.
+ */
+export async function deleteSessions(
+  userId: string,
+  target: { only: string } | { except: string } | { all: true },
+  action: string,
+  meta: AuditMeta,
+): Promise<string[] | null> {
+  return prisma.$transaction(async (tx) => {
+    const where =
+      "only" in target
+        ? { userId, id: target.only }
+        : "except" in target
+          ? { userId, id: { not: target.except } }
+          : { userId };
+    const rows = await tx.session.findMany({ where, select: { id: true, token: true } });
+    if ("only" in target && rows.length === 0) return null;
+    await tx.session.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
+    await tx.auditLog.create({
+      data: auditRow(action, userId, meta, { sessionIds: rows.map((r) => r.id) }),
+    });
+    return rows.map((r) => r.token);
   });
 }

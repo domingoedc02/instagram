@@ -7,7 +7,14 @@ import { logger } from "@/lib/logger";
 import { ensureRedis } from "@/lib/redis";
 import { Sentry } from "@/lib/sentry";
 import { resolveRequestId } from "@/lib/security-headers";
-import { getSession, type Role, type SessionContext } from "@/server/auth/session.service";
+import {
+  type AuthRequest,
+  type Role,
+  type SessionContext,
+  clearedSessionCookie,
+  getSession,
+  hasSessionCookie,
+} from "@/server/auth/session.service";
 import { clientIp } from "./client-ip";
 import { errorResponse, toErrorResponse } from "./errors";
 import { withIdempotency } from "./idempotency";
@@ -46,6 +53,22 @@ export interface ApiInput<B, Q, P> {
   params: Infer<P>;
 }
 
+/** The session of an `auth: "required"` route (the pipeline already rejected anonymous callers). */
+export function sessionOf(ctx: ApiContext): SessionContext {
+  if (!ctx.session) throw new AppError("UNAUTHENTICATED", "Sign in to continue.");
+  return ctx.session;
+}
+
+/** What auth services need from the request: audit facts and the request logger. */
+export function authRequest(ctx: ApiContext): AuthRequest {
+  return {
+    ip: ctx.ip,
+    userAgent: ctx.request.headers.get("user-agent"),
+    requestId: ctx.requestId,
+    log: ctx.log,
+  };
+}
+
 /** A handler returns a Response, a DTO (→ 200 JSON), or nothing (→ 204). */
 export type ApiHandler<B, Q, P> = (
   ctx: ApiContext,
@@ -82,6 +105,8 @@ export function withApi<
     const log = logger.child({ requestId, route: `${request.method} ${url.pathname}` });
     const ip = clientIp(request.headers);
     const headers = new Headers({ "x-request-id": requestId });
+    // Read again after the handler, to renew or expire the cookie.
+    const resolved: { session: SessionContext | null } = { session: null };
 
     const response = await Sentry.withIsolationScope(async (scope) => {
       scope.setTag("requestId", requestId);
@@ -89,6 +114,7 @@ export function withApi<
         // The session is resolved up front because the rate-limit key is the user id when
         // there is one; it is only *enforced* in step 4.
         const session = auth === "none" ? null : await getSession(request);
+        resolved.session = session;
 
         // 2. Rate limit
         const limit = await rateLimit(policy, session ? `u:${session.user.id}` : `ip:${ip}`, {
@@ -160,6 +186,16 @@ export function withApi<
     });
 
     for (const [k, v] of headers) response.headers.set(k, v);
+    // A handler's own Set-Cookie (sign-in, sign-out) wins. Otherwise re-send a cookie whose
+    // expiry just slid, or expire one that no longer resolves so the middleware stops treating
+    // the browser as signed in.
+    if (!response.headers.has("set-cookie")) {
+      const { session } = resolved;
+      if (session?.renewedCookie) response.headers.set("Set-Cookie", session.renewedCookie);
+      else if (!session && auth !== "none" && hasSessionCookie(request)) {
+        response.headers.set("Set-Cookie", clearedSessionCookie());
+      }
+    }
     return response;
   };
 }

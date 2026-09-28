@@ -45,6 +45,10 @@ export function postJson<T = unknown>(path: string, body: unknown, signal?: Abor
   });
 }
 
+export function deleteJson<T = unknown>(path: string) {
+  return call<T>(path, { method: "DELETE" });
+}
+
 export function getJson<T = unknown>(path: string, signal?: AbortSignal) {
   return call<T>(path, signal ? { signal } : {});
 }

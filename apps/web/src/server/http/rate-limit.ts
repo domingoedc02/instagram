@@ -13,7 +13,8 @@ interface Window {
 
 /** Limits from spec/api (Idempotency & rate limits). A policy may stack several windows. */
 export const POLICIES = {
-  "auth-sign-in": [{ limit: 10, windowMs: 15 * MIN }],
+  // INS-23: 20 per 15 min per IP (the approved story supersedes spec/api's 10).
+  "auth-sign-in": [{ limit: 20, windowMs: 15 * MIN }],
   "auth-sign-up": [{ limit: 5, windowMs: HOUR }],
   "auth-forget-password": [{ limit: 3, windowMs: HOUR }],
   // INS-22: resend is limited per IP here and per sha256(email) in the route.

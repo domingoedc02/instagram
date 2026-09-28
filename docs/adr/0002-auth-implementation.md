@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-29
-- Issue: INS-22 (applies to INS-23, INS-24)
+- Issue: INS-22, extended by INS-23 (applies to INS-24)
 
 ## Context
 
@@ -28,8 +28,15 @@ without the `better-auth` dependency:
 
 - Passwords: argon2id via `@node-rs/argon2` (m=19456, t=2, p=1 — OWASP baseline).
 - Sessions: 32 random bytes, base64url, in an `HttpOnly; SameSite=Lax` cookie
-  (`__Secure-ins.session_token` in production); the row stores `sha256(token)`. 30-day TTL,
-  resolved sessions cached in Redis for 5 minutes.
+  (`__Secure-ins.session_token` in production); the row stores `sha256(token)`. 30-day
+  rolling TTL: `expires_at` slides back to 30 days (and the cookie is re-sent) once it is more
+  than 24 h old, and `updated_at` doubles as "last active", written at most hourly. Resolved
+  sessions are cached in Redis for 60 s (`sess:<sha256>`). Sign-out and revocation evict the
+  entry, and the short TTL bounds how stale anything else can be (for example, a suspension).
+- Sign-in (INS-23): identifier-hash and per-account failure counters in Redis, and 5 failures
+  in 15 min lock both for 15 min. Unknown identifiers run a dummy argon2 verify and lock like real
+  ones. Status errors (`ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`) are returned only after a
+  correct password.
 - Verification tokens: `verify:<userId>` identifiers, hashed values, 24 h, single use; issuing
   a new one deletes the old ones.
 
@@ -43,4 +50,8 @@ library later (for OAuth or passkeys, both non-goals today) needs no data migrat
   the spec/testing coverage gate.
 - The tables stay compatible with Better Auth, so switching later is a code change only.
 - Rate-limit policy and audit names use the codebase's separators (`auth-sign-up`,
-  `auth.sign_up`) rather than the story's `auth-signup` / `auth.signup`.
+  `auth.sign_up`, `auth-sign-in`) rather than the stories' `auth-signup` / `auth.signup` /
+  `auth-login-ip`.
+- `auth-sign-in` allows 20 per 15 min per IP, as INS-23 (approved later) specifies. That supersedes
+  spec/api's 10, which would lock out a shared NAT or office network too easily when combined with the
+  per-account lockout.
