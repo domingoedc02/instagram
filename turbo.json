@@ -24,6 +24,9 @@
     "test:int": {
       "dependsOn": ["^build"],
       "cache": false
+    },
+    "@ins/db#build": {
+      "cache": false
     }
   }
 }

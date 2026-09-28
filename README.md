@@ -10,6 +10,8 @@ corepack enable
 pnpm install
 cp .env.example .env   # then fill BETTER_AUTH_SECRET and REALTIME_JWT_SECRET
 pnpm infra:up          # Postgres, PgBouncer, Redis, MinIO, Mailpit (+ bucket setup)
+pnpm db:migrate        # apply migrations (packages/db/prisma/migrations)
+pnpm db:seed           # maya, leo, ana (private), sam (moderator), admin — password1234
 pnpm dev               # web :3000, realtime :4001, worker
 ```
 
@@ -37,5 +39,19 @@ A taken host port can be moved with the `INS_*_PORT` variables in `.env` (see `.
 | `pnpm infra:up`   | Start local services and wait for health  |
 | `pnpm infra:down` | Stop them (volumes kept)                  |
 | `pnpm infra:logs` | Tail service logs                         |
+
+### Database
+
+| Command           | What it does                                                     |
+| ----------------- | ---------------------------------------------------------------- |
+| `pnpm db:migrate` | `prisma migrate dev` — create/apply migrations locally           |
+| `pnpm db:deploy`  | `prisma migrate deploy` — what CI runs against production        |
+| `pnpm db:seed`    | Idempotent dev seed; refuses when `NODE_ENV=production`          |
+| `pnpm db:drift`   | Exits non-zero when `schema.prisma` has changes no migration has |
+| `pnpm db:studio`  | Prisma Studio                                                    |
+| `pnpm test:int`   | Integration tests against the tmpfs test database (:5433)        |
+
+Never edit a migration that has been applied anywhere; add a new one. Constraints Prisma cannot
+express (CHECKs, trigram and partial indexes) are hand-written at the end of `migration.sql`.
 
 See `docs/adr/` for architecture decisions.

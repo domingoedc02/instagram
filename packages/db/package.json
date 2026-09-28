@@ -1,0 +1,38 @@
+{
+  "name": "@ins/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test": "./test/index.ts"
+  },
+  "scripts": {
+    "build": "prisma generate",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "test:int": "dotenv -e ../../.env -- vitest run --config vitest.int.config.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "dotenv -e ../../.env -- prisma migrate dev",
+    "db:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force --skip-seed",
+    "db:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "db:studio": "dotenv -e ../../.env -- prisma studio",
+    "db:drift": "dotenv -e ../../.env -- sh -c 'prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url \"$SHADOW_DATABASE_URL\" --exit-code'"
+  },
+  "dependencies": {
+    "@ins/shared": "workspace:*",
+    "@prisma/client": "6.19.3"
+  },
+  "devDependencies": {
+    "@ins/config": "workspace:*",
+    "@types/node": "^22.19.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.39.5",
+    "prisma": "6.19.3",
+    "tsx": "^4.23.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

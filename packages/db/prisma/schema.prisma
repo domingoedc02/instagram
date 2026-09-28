@@ -1,0 +1,137 @@
+// INS data model. Entities arrive with their epics; see spec/data-model in ORBIT.
+// Conventions: UUIDv7 ids (time-ordered, usable as keyset cursors), snake_case tables and
+// columns via @@map/@map, timestamptz everywhere. Raw-SQL-only constraints live in the
+// migration and are listed in a comment on the model they belong to.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_DATABASE_URL")
+  extensions = [citext, pg_trgm, pg_uuidv7]
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_DELETION
+  DELETED
+}
+
+// Raw SQL (0001_init): CHECK username ~ '^[a-z0-9._]{3,30}$', CHECK char_length(bio) <= 150,
+// GIN trigram indexes on username::text and name for search.
+/// PII: `email` and `birthdate` are restricted — repos select them explicitly, never into public DTOs.
+model User {
+  id                  String     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  email               String     @unique @db.Citext
+  emailVerified       Boolean    @default(false) @map("email_verified")
+  username            String     @unique @db.Citext
+  name                String
+  bio                 String?
+  website             String?
+  avatarMediaId       String?    @map("avatar_media_id") @db.Uuid
+  isPrivate           Boolean    @default(false) @map("is_private")
+  role                Role       @default(USER)
+  status              UserStatus @default(ACTIVE)
+  birthdate           DateTime   @db.Date
+  deletionScheduledAt DateTime?  @map("deletion_scheduled_at") @db.Timestamptz(3)
+  suspendedUntil      DateTime?  @map("suspended_until") @db.Timestamptz(3)
+  followerCount       Int        @default(0) @map("follower_count")
+  followingCount      Int        @default(0) @map("following_count")
+  postCount           Int        @default(0) @map("post_count")
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sessions  Session[]
+  accounts  Account[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// Better Auth session. `token` holds the SHA-256 of the cookie value, never the value itself
+// (hashing happens in the auth adapter, INS-23), so a leaked table cannot be replayed.
+model Session {
+  id        String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  token     String   @unique
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// Better Auth account. For email/password: providerId "credential", accountId = user id,
+// `password` = Argon2id hash (@ins/shared/password). OAuth columns stay for the adapter's shape.
+model Account {
+  id                    String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id") @db.Uuid
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+// Better Auth verification (email verify, password reset). `value` is the SHA-256 of the
+// emailed token, compared in constant time; the raw token only ever exists in the email.
+model Verification {
+  id         String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// Security events (spec/security, Audit logging). Append-only: 0001_init revokes UPDATE and
+// DELETE from the production app role. Kept 1 year; the actor survives as NULL after purge.
+model AuditLog {
+  id        String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  target    String?
+  ip        String?
+  userAgent String?  @map("user_agent")
+  requestId String?  @map("request_id")
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
