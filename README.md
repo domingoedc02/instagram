@@ -54,4 +54,22 @@ A taken host port can be moved with the `INS_*_PORT` variables in `.env` (see `.
 Never edit a migration that has been applied anywhere; add a new one. Constraints Prisma cannot
 express (CHECKs, trigram and partial indexes) are hand-written at the end of `migration.sql`.
 
+### API routes
+
+Every `/api/v1` handler is wrapped in `withApi()` (`apps/web/src/server/http/with-api.ts`), which
+runs, in order: request context → rate limit → Origin check → authenticate → validate (strict
+zod) → authorize → idempotency → handler → error envelope.
+
+```ts
+export const POST = withApi(
+  { rateLimit: "posts", body: createPostSchema, idempotent: true },
+  async (ctx, { body }) =>
+    Response.json(await createPost(ctx.session!.user.id, body), { status: 201 }),
+);
+```
+
+Throw `AppError` from `@ins/shared/errors` for expected failures; anything else becomes a
+500 `INTERNAL` with only the request id. Rate-limit policies live in `server/http/rate-limit.ts`.
+`GET /api/v1/ping` (dev only) exercises the pipeline; `?fail=app|crash` shows the error mapping.
+
 See `docs/adr/` for architecture decisions.

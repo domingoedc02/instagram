@@ -24,6 +24,7 @@ const elements = [
   { type: "web-lib", pattern: "apps/web/src/lib" },
   { type: "web-root", pattern: "apps/web/src" },
   { type: "web-e2e", pattern: "apps/web/e2e" },
+  { type: "web-test", pattern: "apps/web/test" },
   { type: "worker", pattern: "apps/worker" },
   { type: "realtime", pattern: "apps/realtime" },
   { type: "pkg-db", pattern: "packages/db" },
@@ -85,6 +86,20 @@ const policies = [
   allow(el("web-lib"), types(["web-lib", ...packages])),
   allow(el("web-root"), types(["web-lib", "pkg-shared"])),
   allow(el("web-e2e"), types(["web-e2e", "pkg-shared"])),
+  // Integration tests drive the app from outside and may reach any layer.
+  allow(
+    el("web-test"),
+    types([
+      "web-test",
+      "web-app",
+      "web-http",
+      "web-policy",
+      "web-module",
+      "web-lib",
+      "pkg-db",
+      ...packages,
+    ]),
+  ),
   // Apps never import each other.
   allow(el("worker"), types(["worker", "pkg-db", ...packages])),
   allow(el("realtime"), types(["realtime", "pkg-db", "pkg-shared"])),

@@ -10,7 +10,8 @@
     "./flags": "./src/flags.ts",
     "./logger": "./src/logger.ts",
     "./env": "./src/env.ts",
-    "./password": "./src/password.ts"
+    "./password": "./src/password.ts",
+    "./cursor": "./src/cursor.ts"
   },
   "scripts": {
     "lint": "eslint .",
