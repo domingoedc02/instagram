@@ -1,0 +1,118 @@
+# Local equivalent of the Dokploy stack (spec/setup, Local services).
+# Usage: pnpm infra:up | infra:down | infra:logs
+# Host ports can be moved with INS_*_PORT in the root .env when a default is taken.
+name: ins
+
+x-postgres: &postgres
+  image: ghcr.io/fboulnois/pg_uuidv7:1.6.0
+  environment:
+    POSTGRES_USER: ins
+    POSTGRES_PASSWORD: ins
+    POSTGRES_DB: ins
+    POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U ins -d ins"]
+    interval: 2s
+    timeout: 3s
+    retries: 30
+
+services:
+  postgres:
+    <<: *postgres
+    ports: ["${INS_POSTGRES_PORT:-5432}:5432"]
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/001-extensions.sql:ro
+
+  postgres-test:
+    <<: *postgres
+    ports: ["${INS_POSTGRES_TEST_PORT:-5433}:5432"]
+    tmpfs: ["/var/lib/postgresql/data"]
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/001-extensions.sql:ro
+    command:
+      ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"]
+
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.24.1-p1
+    ports: ["${INS_PGBOUNCER_PORT:-6432}:6432"]
+    environment:
+      DB_HOST: postgres
+      DB_USER: ins
+      DB_PASSWORD: ins
+      DB_NAME: ins
+      LISTEN_PORT: 6432
+      POOL_MODE: transaction
+      AUTH_TYPE: scram-sha-256
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 20
+      # Prisma uses protocol-level prepared statements; PgBouncer 1.21+ can track them.
+      MAX_PREPARED_STATEMENTS: 200
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ins -d ins"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["${INS_REDIS_PORT:-6379}:6379"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  minio:
+    # Upstream stopped publishing minio/minio images in 2025; pgsty maintains AGPL builds.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports: ["${INS_MINIO_PORT:-9000}:9000", "${INS_MINIO_CONSOLE_PORT:-9001}:9001"]
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+      # Community MinIO has no per-bucket CORS (`mc cors set` is AIStor-only), so the
+      # browser origin is allowed server-wide. Writes still need a presigned signature and
+      # only ins-media is anonymously readable; prod narrows uploads to PUT at Traefik.
+      MINIO_API_CORS_ALLOW_ORIGIN: http://localhost:3000
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # One-shot bucket setup; `pnpm infra:up` runs it after the services are healthy.
+  minio-init:
+    profiles: ["init"]
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
+    entrypoint: ["/bin/sh", "/init/init.sh"]
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    volumes:
+      - ./minio:/init:ro
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["${INS_SMTP_PORT:-1025}:1025", "${INS_MAILPIT_PORT:-8025}:8025"]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pg-data:
+  redis-data:
+  minio-data:

@@ -1,4 +1,5 @@
 import { createLogger } from "@ins/shared/logger";
+import { env } from "./lib/env";
 
 const log = createLogger("worker");
 
@@ -6,7 +7,7 @@ const log = createLogger("worker");
 // Until then the process stays alive so the Dokploy service has a stable shape.
 const keepalive = setInterval(() => undefined, 60_000);
 
-log.info("worker ready");
+log.info({ env: env.NODE_ENV, mediaConcurrency: env.WORKER_CONCURRENCY_MEDIA }, "worker ready");
 
 function shutdown(signal: NodeJS.Signals): void {
   log.info({ signal }, "worker shutting down");

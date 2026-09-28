@@ -14,7 +14,10 @@
     "test:int": "turbo run test:int",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "infra:up": "infra/scripts/compose.sh up -d --wait --wait-timeout 60 && infra/scripts/compose.sh run --rm minio-init",
+    "infra:down": "infra/scripts/compose.sh down",
+    "infra:logs": "infra/scripts/compose.sh logs -f --tail=100"
   },
   "devDependencies": {
     "husky": "^9.1.7",

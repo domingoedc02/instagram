@@ -1,9 +1,10 @@
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { createLogger } from "@ins/shared/logger";
+import { env } from "./lib/env";
 
 const log = createLogger("realtime");
-const port = Number(process.env.REALTIME_PORT ?? 4001);
+const port = env.REALTIME_PORT;
 
 const http = createServer((req, res) => {
   if (req.url === "/health") {
@@ -16,7 +17,7 @@ const http = createServer((req, res) => {
 
 // Auth, rooms and the dm/typing/presence handlers land with the DM epic.
 const io = new Server(http, {
-  cors: { origin: process.env.APP_URL ?? "http://localhost:3000", credentials: true },
+  cors: { origin: env.ALLOWED_ORIGINS, credentials: true },
 });
 
 io.on("connection", (socket) => {
