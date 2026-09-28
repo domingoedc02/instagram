@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "@ins/config/tailwind-preset.css";
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}

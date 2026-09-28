@@ -1,0 +1,25 @@
+{
+  "name": "@ins/email",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ins/shared": "workspace:*",
+    "@react-email/components": "^1.0.12",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@ins/config": "workspace:*",
+    "@types/node": "^22.19.0",
+    "eslint": "^9.39.5",
+    "typescript": "~5.9.3",
+    "@types/react": "^19.2.0"
+  }
+}
