@@ -8,18 +8,22 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@ins/shared": "workspace:*",
     "@react-email/components": "^1.0.12",
+    "nodemailer": "^8",
     "react": "^19.2.0"
   },
   "devDependencies": {
     "@ins/config": "workspace:*",
     "@types/node": "^22.19.0",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.2.0",
     "eslint": "^9.39.5",
     "typescript": "~5.9.3",
-    "@types/react": "^19.2.0"
+    "vitest": "^5.0.2"
   }
 }

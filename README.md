@@ -56,6 +56,17 @@ Never edit a migration that has been applied anywhere; add a new one. Constraint
 express (CHECKs, expression and partial indexes) are hand-written at the end of `migration.sql`;
 declare every other index in `schema.prisma`, or `migrate dev` will generate a DROP for it.
 
+### Auth in development
+
+Sign up at `/signup`; the confirmation email lands in Mailpit (http://localhost:8025) and its
+link signs you in. `HIBP_ENABLED=false` skips the breached-password check offline (the seed
+password `password1234` is breached, so leave it off to sign up with it). If port 3000 is
+taken, set `APP_URL`, `BETTER_AUTH_URL` and `ALLOWED_ORIGINS` to the port you use: mutating
+requests from any other origin get 403. Design: [ADR-0002](docs/adr/0002-auth-implementation.md).
+
+`next build` must run without `.env`'s `NODE_ENV=development` (CI and Vercel build without it);
+building with it fails prerendering `/404` with "`<Html>` should not be imported".
+
 CI (`.github/workflows/ci.yml`) runs the same commands on every PR; see [docs/ci.md](docs/ci.md)
 for the jobs, the coverage gates and branch protection.
 

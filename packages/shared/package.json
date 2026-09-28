@@ -11,7 +11,9 @@
     "./logger": "./src/logger.ts",
     "./env": "./src/env.ts",
     "./password": "./src/password.ts",
-    "./cursor": "./src/cursor.ts"
+    "./cursor": "./src/cursor.ts",
+    "./reserved-usernames": "./src/reserved-usernames.ts",
+    "./schemas/auth": "./src/schemas/auth.ts"
   },
   "scripts": {
     "lint": "eslint .",

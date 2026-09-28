@@ -16,6 +16,11 @@ export const POLICIES = {
   "auth-sign-in": [{ limit: 10, windowMs: 15 * MIN }],
   "auth-sign-up": [{ limit: 5, windowMs: HOUR }],
   "auth-forget-password": [{ limit: 3, windowMs: HOUR }],
+  // INS-22: resend is limited per IP here and per sha256(email) in the route.
+  "auth-resend-verification": [{ limit: 10, windowMs: HOUR }],
+  "auth-resend-verification-email": [{ limit: 3, windowMs: HOUR }],
+  "auth-verify-email": [{ limit: 30, windowMs: HOUR }],
+  "auth-username-available": [{ limit: 30, windowMs: MIN }],
   "media-uploads": [{ limit: 60, windowMs: HOUR }],
   posts: [{ limit: 25, windowMs: HOUR }],
   stories: [{ limit: 50, windowMs: DAY }],

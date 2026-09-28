@@ -14,8 +14,10 @@
     "test:coverage": "dotenv -e ../../.env -- vitest run --config vitest.coverage.config.ts"
   },
   "dependencies": {
+    "@ins/db": "workspace:^",
     "@ins/email": "workspace:*",
     "@ins/shared": "workspace:*",
+    "@node-rs/argon2": "^2.2.1",
     "@radix-ui/react-slot": "^1.2.3",
     "@sentry/nextjs": "^11.1.0",
     "class-variance-authority": "^0.7.1",

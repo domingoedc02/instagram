@@ -115,6 +115,7 @@ model Verification {
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([identifier])
+  @@index([value])
   @@map("verifications")
 }
 
