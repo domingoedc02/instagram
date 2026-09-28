@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
-    "test:int": "dotenv -e ../../.env -- vitest run --config vitest.int.config.ts"
+    "test:int": "dotenv -e ../../.env -- vitest run --config vitest.int.config.ts",
+    "test:coverage": "dotenv -e ../../.env -- vitest run --config vitest.coverage.config.ts"
   },
   "dependencies": {
     "@ins/email": "workspace:*",
@@ -33,6 +34,7 @@
     "@types/node": "^22.19.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@vitest/coverage-v8": "5.0.2",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.39.5",
     "tailwindcss": "^4.3.3",

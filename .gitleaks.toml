@@ -1,0 +1,8 @@
+# gitleaks (CI `security` job). Default rules, plus an allowlist for files that hold only
+# documented throwaway values for local/CI containers.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local and CI placeholders, not secrets"
+paths = ['''^\.env\.example$''', '''^\.github/ci\.env$''']

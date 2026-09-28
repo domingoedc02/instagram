@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:int": "turbo run test:int",
+    "test:coverage": "turbo run test:coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
@@ -43,6 +44,10 @@
       "esbuild",
       "prisma",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "next>postcss": "^8.5.28",
+      "@prisma/config>deepmerge-ts": "^8.0.2"
+    }
   }
 }

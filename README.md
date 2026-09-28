@@ -42,17 +42,22 @@ A taken host port can be moved with the `INS_*_PORT` variables in `.env` (see `.
 
 ### Database
 
-| Command           | What it does                                                     |
-| ----------------- | ---------------------------------------------------------------- |
-| `pnpm db:migrate` | `prisma migrate dev` — create/apply migrations locally           |
-| `pnpm db:deploy`  | `prisma migrate deploy` — what CI runs against production        |
-| `pnpm db:seed`    | Idempotent dev seed; refuses when `NODE_ENV=production`          |
-| `pnpm db:drift`   | Exits non-zero when `schema.prisma` has changes no migration has |
-| `pnpm db:studio`  | Prisma Studio                                                    |
-| `pnpm test:int`   | Integration tests against the tmpfs test database (:5433)        |
+| Command              | What it does                                                      |
+| -------------------- | ----------------------------------------------------------------- |
+| `pnpm db:migrate`    | `prisma migrate dev` — create/apply migrations locally            |
+| `pnpm db:deploy`     | `prisma migrate deploy` — what CI runs against production         |
+| `pnpm db:seed`       | Idempotent dev seed; refuses when `NODE_ENV=production`           |
+| `pnpm db:drift`      | Exits non-zero when `schema.prisma` has changes no migration has  |
+| `pnpm db:studio`     | Prisma Studio                                                     |
+| `pnpm test:int`      | Integration tests against the tmpfs test database (:5433)         |
+| `pnpm test:coverage` | Web unit + integration tests with the spec/testing coverage gates |
 
 Never edit a migration that has been applied anywhere; add a new one. Constraints Prisma cannot
-express (CHECKs, trigram and partial indexes) are hand-written at the end of `migration.sql`.
+express (CHECKs, expression and partial indexes) are hand-written at the end of `migration.sql`;
+declare every other index in `schema.prisma`, or `migrate dev` will generate a DROP for it.
+
+CI (`.github/workflows/ci.yml`) runs the same commands on every PR; see [docs/ci.md](docs/ci.md)
+for the jobs, the coverage gates and branch protection.
 
 ### API routes
 

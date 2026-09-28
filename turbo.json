@@ -27,6 +27,11 @@
     },
     "@ins/db#build": {
       "cache": false
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "outputs": ["coverage/**"]
     }
   }
 }

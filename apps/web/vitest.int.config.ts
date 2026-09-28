@@ -5,6 +5,7 @@ import base from "./vitest.config.ts";
 export default defineConfig({
   resolve: base.resolve,
   test: {
+    name: "integration",
     include: ["test/integration/**/*.int.test.ts"],
     environment: "node",
     fileParallelism: false,

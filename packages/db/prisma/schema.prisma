@@ -29,7 +29,7 @@ enum UserStatus {
 }
 
 // Raw SQL (0001_init): CHECK username ~ '^[a-z0-9._]{3,30}$', CHECK char_length(bio) <= 150,
-// GIN trigram indexes on username::text and name for search.
+// GIN trigram index on username::text for search (an expression, so Prisma cannot declare it).
 /// PII: `email` and `birthdate` are restricted — repos select them explicitly, never into public DTOs.
 model User {
   id                  String     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
@@ -56,6 +56,8 @@ model User {
   accounts  Account[]
   auditLogs AuditLog[]
 
+  // Declared here (not only in SQL) so `prisma migrate dev` does not generate a DROP for it.
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "users_name_trgm_idx")
   @@map("users")
 }
 
